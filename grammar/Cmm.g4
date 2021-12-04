@@ -82,10 +82,15 @@ body returns[Statement bodyRet]:
 loopCondBody :
      (blockStatement | (NEWLINE+ singleStatement ));
 
-//todo
-blockStatement :
-    BEGIN (NEWLINE+ (singleStatement SEMICOLON)* singleStatement (SEMICOLON)?)+ NEWLINE+ END;
-
+//todo how implement for *?
+blockStatement returns [BlockStmt blockStatementRet]://
+    {$blockStatementRet = new BlockStmt();}
+    b = BEGIN
+    {int line = $b.getLine();
+     $blockStatementRet.setLine(line);}
+    (NEWLINE+ (sa = singleStatement {$blockStatementRet.addStatement(sa.singleStatementRet)} SEMICOLON)*
+    (sb = singleStatement {$blockStatementRet.addStatement(sa.singleStatementRet)}) (SEMICOLON)?)+
+    NEWLINE+ END;
 //todo
 varDecStatement :
     type identifier (ASSIGN orExpression )? (COMMA identifier (ASSIGN orExpression)? )*;
@@ -130,25 +135,38 @@ doWhileLoopStatement :
     DO body NEWLINE* WHILE expression;
 
 //todo
-displayStatement :
-  DISPLAY LPAR expression RPAR;
+displayStatement returns [DisplayStmt displayStatementRet] :
+    {$displayStatementRet = new DisplayStmt();}
+    d = DISPLAY
+    {int line $d.getLine();
+     $displayStatementRet.setLine(line);}
+    LPAR e = expression {$displayStatementRet.setArg($e.expressionRet);} RPAR;
 
-//todo
-assignmentStatement :
-    orExpression ASSIGN expression;
+//todo problem for orexpr
+assignmentStatement returns [AssignmentStmt assignmentStatementRet]:/// get line from assign
+    o = orExpression a = ASSIGN e = expression
+    {$assignmentStatementRet = new AssignmentStmt($o.orExpressionRet, $e.expressionRet);
+     int line $a.getLine();
+     $assignmentStatementRet.setLine(line);};
 
 //todo
 singleStatement returns [Statement singleStatementRet]:
 
-    i = ifStatement {$singleStatementRet = $i.ifStatementRet} |
-    d = displayStatement {$singleStatementRet = $d.displayStatementRet} |
-    f = functionCallStmt {$singleStatementRet = $f.functionCallStmtRet} |
-    r = returnStatement {$singleStatementRet = $r.returnStatementRet} |
-    a = assignmentStatement {$singleStatementRet = $a.assignmentStatementRet} |
-    v = varDecStatement {$singleStatementRet = $v.varDecStatementRet} |
-    l = loopStatement {$singleStatementRet = $l.loopStatementRet} |
-    app = append {$singleStatementRet = $app.appendRet} |
-    s = size {$singleStatementRet = $s.sizeRet};
+    i = ifStatement {$singleStatementRet = $i.ifStatementRet;} |
+    d = displayStatement {$singleStatementRet = $d.displayStatementRet;} |
+    f = functionCallStmt {$singleStatementRet = $f.functionCallStmtRet;} |
+    r = returnStatement {$singleStatementRet = $r.returnStatementRet;} |
+    a = assignmentStatement {$singleStatementRet = $a.assignmentStatementRet;} |
+    v = varDecStatement {$singleStatementRet = $v.varDecStatementRet;} |
+    l = loopStatement {$singleStatementRet = $l.loopStatementRet;} |
+    app = append
+    {int line = $app.appendRet.getLine();
+     $singleStatementRet = new ListAppendStmt($app.appendRet);
+     $singleStatementRet.setLine(line);} |
+    s = size
+    {int line = $s.sizeRet.getLine();
+     $singleStatementRet = new ListSizeStmt($s.sizeRet);
+     $singleStatementRet.setLine(line);};
 
 //todo
 expression returns[Expression expressionRet]:
