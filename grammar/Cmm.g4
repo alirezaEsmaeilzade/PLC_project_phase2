@@ -72,7 +72,9 @@ functionArguments :
 
 //todo
 body returns[Statement bodyRet]:
-     (blockStatement | (NEWLINE+ singleStatement (SEMICOLON)?));
+
+     ((bs = blockStatement {$bodyRet = $bs.blockStatementRet;}) |
+     (NEWLINE+ (ss = singleStatement {$bodyRet = $ss.singleStatementRet;}) (SEMICOLON)?));
 
 //todo
 loopCondBody :
@@ -95,8 +97,14 @@ returnStatement :
     RETURN (expression)?;
 
 //todo
-ifStatement :
-    IF expression (loopCondBody | body elseStatement);
+ifStatement returns[ConditionalStmt ifStatementRet]:
+    i = IF e = expression
+    {$ifStatementRet = new ConditionalStmt($e.expressionRet);
+     int line = $i.getLine();
+     $ifStatementRet.setLine(line);}
+    ((l = loopCondBody {$ifStatementRet.setThenBody($l.loopCondBodyRet);})|
+     (b = body {$ifStatementRet.setThenBody($b.bodyRet);}
+     es = elseStatement {$ifStatementRet.setElseBody($es.elseStatementRet);}));
 
 //todo
 elseStatement :
@@ -107,8 +115,13 @@ loopStatement :
     whileLoopStatement | doWhileLoopStatement;
 
 //todo
-whileLoopStatement :
-    WHILE expression loopCondBody;
+whileLoopStatement returns [LoopStmt whileLoopStatementRet]:
+    {$whileLoopStatementRet = new LoopStmt();}
+    w = WHILE
+    {int line = $w.getLine();
+    $whileLoopStatementRet.setLine(line);}
+    e = expression {$whileLoopStatementRet.setCondition($e.expressionRet);}
+    l = loopCondBody {$whileLoopStatementRet.setBody($l.loopCondBodyRet);};
 
 //todo
 doWhileLoopStatement :
@@ -123,12 +136,20 @@ assignmentStatement :
     orExpression ASSIGN expression;
 
 //todo
-singleStatement :
-    ifStatement | displayStatement | functionCallStmt | returnStatement | assignmentStatement
-    | varDecStatement | loopStatement | append | size;
+singleStatement returns [Statement singleStatementRet]:
+
+    i = ifStatement {$singleStatementRet = $i.ifStatementRet} |
+    d = displayStatement {$singleStatementRet = $d.displayStatementRet} |
+    f = functionCallStmt {$singleStatementRet = $f.functionCallStmtRet} |
+    r = returnStatement {$singleStatementRet = $r.returnStatementRet} |
+    a = assignmentStatement {$singleStatementRet = $a.assignmentStatementRet} |
+    v = varDecStatement {$singleStatementRet = $v.varDecStatementRet} |
+    l = loopStatement {$singleStatementRet = $l.loopStatementRet} |
+    app = append {$singleStatementRet = $app.appendRet} |
+    s = size {$singleStatementRet = $s.sizeRet};
 
 //todo
-expression:
+expression returns [Expression expressionRet]:
     orExpression (op = ASSIGN expression )? ;
 
 //todo
