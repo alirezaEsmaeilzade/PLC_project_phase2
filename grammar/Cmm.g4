@@ -27,7 +27,12 @@ program returns[Program programRet]:
 
 //todo
 main returns[MainDeclaration mainRet]:
-    MAIN LPAR RPAR body;
+    {$mainRet = new MainDeclaration();}
+    m = MAIN
+    {int line = $m.getLine();
+     mainRet.setLine(line);}
+    LPAR RPAR b = body {mainRet.setBody($b.bodyRet);}
+    ;
 
 //todo
 structDeclaration returns[StructDeclaration structDeclarationRet]:
@@ -66,7 +71,7 @@ functionArguments :
     (expression (COMMA expression)*)?;
 
 //todo
-body :
+body returns[Statement bodyRet]:
      (blockStatement | (NEWLINE+ singleStatement (SEMICOLON)?));
 
 //todo
