@@ -67,8 +67,10 @@ functionArgsDec :
     LPAR (type identifier (COMMA type identifier)*)? RPAR ;
 
 //todo
-functionArguments :
-    (expression (COMMA expression)*)?;
+functionArguments returns[ArrayList<Expression> args]:
+    {$args = new ArrayList<>();}
+    (e1 = expression {$args.add($e1.expressionRet);}
+    (COMMA e2 = expression {$args.add($e2.expressionRet);})*)?;
 
 //todo
 body returns[Statement bodyRet]:
@@ -149,67 +151,176 @@ singleStatement returns [Statement singleStatementRet]:
     s = size {$singleStatementRet = $s.sizeRet};
 
 //todo
-expression returns [Expression expressionRet]:
-    orExpression (op = ASSIGN expression )? ;
+expression returns[Expression expressionRet]:
+    
+    o = orExpression {$expressionRet = $o.orExpressionRet;}
+    (op = ASSIGN e = expression
+    {Expression operand1 = $expressionRet;
+     Expression operand2 = $e.expressionRet;
+     BinaryOperator operator = $op.operatorRet;
+     $expressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $expressionRet.setLine(line);})? ;
 
 //todo
-orExpression:
-    andExpression (op = OR andExpression )*;
+orExpression returns[Expression orExpressionRet]:
+    o1 = andExpression {$orExpressionRet = $o1.andExpressionRet;}
+    (op = OR {BinaryOperator operator = BinaryOperator.or;} o2 = andExpression
+    {Expression operand1 = $orExpressionRet;
+     Expression operand2 = $o2.andExpressionRet;
+     $orExpressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $orExpressionRet.setLine(line);})*;
 
 //todo
-andExpression:
-    equalityExpression (op = AND equalityExpression )*;
+andExpression returns[Expression andExpressionRet]:
+    o1 = equalityExpression {$andExpressionRet = $o1.equalityExpressionRet;}
+    (op = AND {BinaryOperator operator = BinaryOperator.and;} o2 = equalityExpression
+    {Expression operand1 = $andExpressionRet;
+     Expression operand2 = $o2.equalityExpressionRet;
+     $andExpressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $andExpressionRet.setLine(line);})*;
 
 //todo
-equalityExpression:
-    relationalExpression (op = EQUAL relationalExpression )*;
+equalityExpression returns[Expression equalityExpressionRet]:
+    o1 = relationalExpression {$equalityExpressionRet = $o1.relationalExpressionRet;}
+    (op = EQUAL {BinaryOperator operator = BinaryOperator.eq;} o2 = relationalExpression 
+    {Expression operand1 = $equalityExpressionRet;
+     Expression operand2 = $o2.relationalExpressionRet;
+     $equalityExpressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $equalityExpressionRet.setLine(line);})*;
 
 //todo
-relationalExpression:
-    additiveExpression ((op = GREATER_THAN | op = LESS_THAN) additiveExpression )*;
+relationalExpression returns[Expression relationalExpressionRet]:
+    o1 = additiveExpression {$relationalExpressionRet = $o1.additiveExpressionRet;}
+    ( {BinaryOperator operator;}
+    (op = GREATER_THAN {operator = BinaryOperator.gt;} | op = LESS_THAN {operator = BinaryOperator.lt;})
+     o2 = additiveExpression 
+    {Expression operand1 = $relationalExpressionRet;
+     Expression operand2 = $o2.additiveExpressionRet;
+     $relationalExpressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $relationalExpressionRet.setLine(line);})*;
 
 //todo
-additiveExpression:
-    multiplicativeExpression ((op = PLUS | op = MINUS) multiplicativeExpression )*;
+additiveExpression returns[Expression additiveExpressionRet]:
+    o1 = multiplicativeExpression {$additiveExpressionRet = $o1.multiplicativeExpressionRet;}
+    ( {BinaryOperator operator;}
+    (op = PLUS {operator = BinaryOperator.plus;} | op = MINUS {operator = BinaryOperator.minus;})
+     o2 = multiplicativeExpression 
+    {Expression operand1 = $additiveExpressionRet;
+     Expression operand2 = $o2.multiplicativeExpressionRet;
+     
+     $additiveExpressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $additiveExpressionRet.setLine(line);})*;
 
 //todo
-multiplicativeExpression:
-    preUnaryExpression ((op = MULT | op = DIVIDE) preUnaryExpression )*;
+multiplicativeExpression returns[Expression multiplicativeExpressionRet]:
+    o1 = preUnaryExpression {$multiplicativeExpressionRet = $o1.preUnaryExpressionRet;}
+    ( {BinaryOperator operator;}
+    (op = MULT {operator = BinaryOperator.mult;} | op = DIVIDE {operator = BinaryOperator.divide;})
+     o2 = preUnaryExpression 
+    {Expression operand1 = $multiplicativeExpressionRet;
+     Expression operand2 = $o2.preUnaryExpressionRet;
+     $multiplicativeExpressionRet = new BinaryExpression(operand1, operand2, operator);
+     int line = $op.getLine();
+     $multiplicativeExpressionRet.setLine(line);})*;
 
 //todo
-preUnaryExpression:
-    ((op = NOT | op = MINUS) preUnaryExpression ) | accessExpression;
+preUnaryExpression returns[Expression preUnaryExpressionRet]:
+    ( {BinaryOperator operator;}
+    (op = NOT {operator = UnaryOperator.not;} | op = MINUS {operator = UnaryOperator.minus;}) p = preUnaryExpression 
+    {Expression operand = $p.preUnaryExpressionRet;
+     $preUnaryExpressionRet = new UnaryExpression(operand, operator);
+     int line = $op.getLine();
+     $preUnaryExpressionRet.setLine(line);}) |
+     (a = accessExpression {$preUnaryExpressionRet = $a.accessExpressionRet});
 
 //todo
-accessExpression:
-    otherExpression ((LPAR functionArguments RPAR) | (DOT identifier))*  ((LBRACK expression RBRACK) | (DOT identifier))*;
+accessExpression returns[Expression accessExpressionRet]:
+    o = otherExpression {$accessExpressionRet = $o.otherExpressionRet;}
+
+    ((lp = LPAR f = functionArguments RPAR)
+    {Expression instance = $accessExpressionRet;
+     ArrayList<Expression> args = $f.args;
+     $accessExpressionRet = new FunctionCall(instance, args);
+     int line = $lp.getLine();
+     $accessExpressionRet.setLine(line);} |
+     d1 = DOT i1 = identifier
+    {Expression instance = $accessExpressionRet;
+     Identifier element = $i1.identifierRet;
+     $accessExpressionRet = new StructAccess(instance, args);
+     int line = $d1.getLine();
+     $accessExpressionRet.setLine(line);})*
+    
+    ((lb = LBRACK e = expression RBRACK)
+    {Expression instance = $accessExpressionRet;
+     Expression index = $e.expressionRet;
+     $accessExpressionRet = new ListAccessByIndex(instance, index);
+     int line = $lb.getLine();
+     $accessExpressionRet.setLine(line);} |
+    (d2 = DOT i2 = identifier)
+    {Expression instance = $accessExpressionRet;
+     Identifier element = $i2.identifierRet;
+     $accessExpressionRet = new StructAccess(instance, args);
+     int line = $d2.getLine();
+     $accessExpressionRet.setLine(line);})*;
 
 //todo
-otherExpression:
-    value | identifier | LPAR (functionArguments) RPAR | size | append ;
+otherExpression returns[Expression otherExpressionRet]:
+    v = value {$otherExpressionRet = $v.valueRet;} |
+    i = identifier {$otherExpressionRet = $i.identifierRet;} |
+    l = LPAR (f = functionArguments) RPAR
+    {$otherExpressionRet = new ExprInPar($f.args);
+     int line = $l.getLine();
+     $otherExpressionRet.setLine(line);} |
+    s = size {$otherExpressionRet = $s.sizeRet;} |
+    a = append {$otherExpressionRet = $a.appendRet;};
 
 //todo
-size :
-    SIZE LPAR expression RPAR;
+size returns[ListSize sizeRet]:
+    s = SIZE LPAR e = expression RPAR
+    {$sizeRet = new ListSize($e.expressionRet);
+     int line = $s.getLine();
+     $sizeRet.setLine(line);};
 
 //todo
-append :
-    APPEND LPAR expression COMMA expression RPAR;
+append returns[ListAppend appendRet]:
+    a = APPEND LPAR e1 = expression COMMA e2 = expression RPAR
+    {$appendRet = new ListAppend($e1.expressionRet, $e2.expressionRet);
+     int line = $a.getLine();
+     $appendRet.setLine(line);};
 
 //todo
-value :
-    boolValue | INT_VALUE;
+value returns[Value valueRet]:
+    b = boolValue
+    {$valueRet = $b.boolValueRet;} |
+    i = INT_VALUE
+    {$valueRet = new IntValue(Integer.parseInt($i.text));};
 
 //todo
-boolValue:
-    TRUE | FALSE;
+boolValue returns[BoolValue boolValueRet]:
+    t = TRUE
+    {$boolValueRet = new BoolValue(true);
+    int line = $t.getLine();
+    $boolValueRet.setLine(line);} |
+    f = FALSE
+    {$boolValueRet = new BoolValue(false);
+    int line = $f.getLine();
+    $boolValueRet.setLine(line);};
 
 //todo
-identifier:
-    IDENTIFIER;
+identifier returns[Identifier identifierRet]:
+    i = IDENTIFIER
+    {$identifierRet = new Identifier($i.text);
+     int line = $i.getLine();
+     $identifierRet.setLine(line);};
 
 //todo
-type:
+type returns[Type typeRet]:
     INT | BOOL | LIST SHARP type | STRUCT identifier | fptrType;
 
 //todo
