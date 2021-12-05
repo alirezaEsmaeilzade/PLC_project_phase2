@@ -15,7 +15,7 @@ grammar Cmm;
  }
 
 cmm returns[Program cmmProgram]:
-    NEWLINE* p = program {$cmmProgram = $p.programRet;} NEWLINE* EOF;
+    NEWLINE p = program {$cmmProgram = $p.programRet;} NEWLINE EOF;
 
 program returns[Program programRet]:
     {$programRet = new Program();
@@ -23,16 +23,14 @@ program returns[Program programRet]:
      $programRet.setLine(line);}
     (s = structDeclaration {$programRet.addStruct($s.structDeclarationRet);})*
     (f = functionDeclaration {$programRet.addFunction($f.functionDeclarationRet);})*
-    m = main {$programRet.setMain($m.mainRet);};
+    (m = main {$programRet.setMain($m.mainRet);});
 
-//todo
 main returns[MainDeclaration mainRet]:
-    {$mainRet = new MainDeclaration();}
-    m = MAIN
-    {int line = $m.getLine();
-     mainRet.setLine(line);}
-    LPAR RPAR b = body {mainRet.setBody($b.bodyRet);}
-    ;
+    (m = MAIN)
+    {$mainRet = new MainDeclaration();
+     int line = $m.getLine();
+     $mainRet.setLine(line);}
+    LPAR RPAR (b = body {$mainRet.setBody($b.bodyRet);});
 
 //todo
 structDeclaration returns[StructDeclaration structDeclarationRet]:
@@ -62,7 +60,7 @@ setBody :
 functionDeclaration returns[FunctionDeclaration functionDeclarationRet]:
     {$functionDeclarationRet = new FunctionDeclaration();}
     (t = type {$functionDeclarationRet.setReturnType($t.typeRet);} |
-    VOID {$functionDeclarationRet.setReturnType(new VoidType();)})
+    VOID {$functionDeclarationRet.setReturnType(new VoidType());})
     i = identifier {$functionDeclarationRet.setFunctionName($i.identifierRet);}
     f = functionArgsDec {$functionDeclarationRet.setArgs($f.functionArgsDecRet);}
     b = body {$functionDeclarationRet.setBody($b.bodyRet);}
@@ -122,10 +120,10 @@ functionCallStmt returns[FunctionCallStmt functionCallStmtRet]:
     o = otherExpression {instance = $o.otherExpressionRet;}
     ((l1 = LPAR f1 = functionArguments RPAR)
     {instance = new FunctionCall(instance, $f1.args);
-     instance.setLine($l1.getLine();)} |
+     instance.setLine($l1.getLine());} |
     (d = DOT i = identifier)
     {instance = new StructAccess(instance, $i.identifierRet);
-     instance.setLine($d.getLine())})*
+     instance.setLine($d.getLine());})*
     (l2 = LPAR f2 = functionArguments RPAR
     {FunctionCall funcCall = new FunctionCall(instance, $f2.args);
      funcCall.setLine($l2.getLine());
@@ -152,7 +150,7 @@ ifStatement returns[ConditionalStmt ifStatementRet]:
 
 //todo
 elseStatement returns[Statement elseStatementRet]:
-     NEWLINE* ELSE l = loopCondBody {$elseStatementRet = $l.loopCondBodyRet};
+     NEWLINE* ELSE l = loopCondBody {$elseStatementRet = $l.loopCondBodyRet;};
 
 //todo
 loopStatement returns[LoopStmt loopStatementRet]:
@@ -181,14 +179,14 @@ doWhileLoopStatement returns[LoopStmt doWhileLoopStatementRet]:
 displayStatement returns[DisplayStmt displayStatementRet] :
     d = DISPLAY LPAR e = expression
     {$displayStatementRet = new DisplayStmt($e.expressionRet);
-     int line $d.getLine();
+     int line = $d.getLine();
      $displayStatementRet.setLine(line);} RPAR;
 
 //todo problem for orexpr
 assignmentStatement returns[AssignmentStmt assignmentStatementRet]:/// get line from assign
     o = orExpression a = ASSIGN e = expression
     {$assignmentStatementRet = new AssignmentStmt($o.orExpressionRet, $e.expressionRet);
-     int line $a.getLine();
+     int line = $a.getLine();
      $assignmentStatementRet.setLine(line);};
 
 //todo
@@ -266,7 +264,7 @@ relationalExpression returns[Expression relationalExpressionRet]:
 additiveExpression returns[Expression additiveExpressionRet]:
     o1 = multiplicativeExpression {$additiveExpressionRet = $o1.multiplicativeExpressionRet;}
     ( {BinaryOperator operator;}
-    (op = PLUS {operator = BinaryOperator.plus;} | op = MINUS {operator = BinaryOperator.minus;})
+    (op = PLUS {operator = BinaryOperator.add;} | op = MINUS {operator = BinaryOperator.sub;})
      o2 = multiplicativeExpression 
     {Expression operand1 = $additiveExpressionRet;
      Expression operand2 = $o2.multiplicativeExpressionRet;
@@ -279,7 +277,7 @@ additiveExpression returns[Expression additiveExpressionRet]:
 multiplicativeExpression returns[Expression multiplicativeExpressionRet]:
     o1 = preUnaryExpression {$multiplicativeExpressionRet = $o1.preUnaryExpressionRet;}
     ( {BinaryOperator operator;}
-    (op = MULT {operator = BinaryOperator.mult;} | op = DIVIDE {operator = BinaryOperator.divide;})
+    (op = MULT {operator = BinaryOperator.mult;} | op = DIVIDE {operator = BinaryOperator.div;})
      o2 = preUnaryExpression 
     {Expression operand1 = $multiplicativeExpressionRet;
      Expression operand2 = $o2.preUnaryExpressionRet;
@@ -289,13 +287,13 @@ multiplicativeExpression returns[Expression multiplicativeExpressionRet]:
 
 //todo
 preUnaryExpression returns[Expression preUnaryExpressionRet]:
-    ( {BinaryOperator operator;}
+    ( {UnaryOperator operator;}
     (op = NOT {operator = UnaryOperator.not;} | op = MINUS {operator = UnaryOperator.minus;}) p = preUnaryExpression 
     {Expression operand = $p.preUnaryExpressionRet;
      $preUnaryExpressionRet = new UnaryExpression(operand, operator);
      int line = $op.getLine();
      $preUnaryExpressionRet.setLine(line);}) |
-     (a = accessExpression {$preUnaryExpressionRet = $a.accessExpressionRet});
+     (a = accessExpression {$preUnaryExpressionRet = $a.accessExpressionRet;});
 
 //todo
 accessExpression returns[Expression accessExpressionRet]:
@@ -383,7 +381,7 @@ type returns[Type typeRet]:
     BOOL {$typeRet = new BoolType();} |
     LIST SHARP t = type {$typeRet = new ListType($t.typeRet);} |
     STRUCT i = identifier {$typeRet = new StructType($i.identifierRet);} |
-    f = fptrType {$typeRet = $f.fptrTypeRet};
+    f = fptrType {$typeRet = $f.fptrTypeRet;};
 
 //todo
 fptrType returns[FptrType fptrTypeRet]:
