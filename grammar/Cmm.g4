@@ -83,7 +83,7 @@ loopCondBody :
      (blockStatement | (NEWLINE+ singleStatement ));
 
 //todo how implement for *?
-blockStatement returns [BlockStmt blockStatementRet]://
+blockStatement returns[BlockStmt blockStatementRet]://
     {$blockStatementRet = new BlockStmt();}
     b = BEGIN
     {int line = $b.getLine();
@@ -96,12 +96,20 @@ varDecStatement :
     type identifier (ASSIGN orExpression )? (COMMA identifier (ASSIGN orExpression)? )*;
 
 //todo
-functionCallStmt :
-     otherExpression ((LPAR functionArguments RPAR) | (DOT identifier))* (LPAR functionArguments RPAR);
+functionCallStmt returns[FunctionCallStmt functionCallStmtRet]:
+    {Expression instance;
+     ArrayList<Expression> args;}
+    o = otherExpression {instance = $o.otherExpressionRet}
+    ((LPAR f1 = functionArguments RPAR) {} | (DOT identifier) {})*
+    (LPAR f1 = functionArguments RPAR);
 
 //todo
-returnStatement :
-    RETURN (expression)?;
+returnStatement returns[ReturnStmt returnStatementRet]:
+    {$returnStatementRet = new ReturnStmt();}
+    r = RETURN
+    {int line = $r.getLine();
+     $returnStatementRet.setLine(line);}
+    (e = expression {$returnStatementRet.setReturnedExpr($e.expressionRet);})?;
 
 //todo
 ifStatement returns[ConditionalStmt ifStatementRet]:
@@ -114,43 +122,48 @@ ifStatement returns[ConditionalStmt ifStatementRet]:
      es = elseStatement {$ifStatementRet.setElseBody($es.elseStatementRet);}));
 
 //todo
-elseStatement :
-     NEWLINE* ELSE loopCondBody;
+elseStatement returns[Statement elseStatementRet]:
+     NEWLINE* ELSE l = loopCondBody {$elseStatementRet = $l.loopCondBodyRet};
 
 //todo
-loopStatement :
-    whileLoopStatement | doWhileLoopStatement;
+loopStatement returns[LoopStmt loopStatementRet]:
+    w = whileLoopStatement {$loopStatementRet = $w.whileLoopStatementRet;} |
+    d = doWhileLoopStatement {$loopStatementRet = $d.doWhileLoopStatementRet;};
 
 //todo
-whileLoopStatement returns [LoopStmt whileLoopStatementRet]:
+whileLoopStatement returns[LoopStmt whileLoopStatementRet]:
     {$whileLoopStatementRet = new LoopStmt();}
     w = WHILE
     {int line = $w.getLine();
-    $whileLoopStatementRet.setLine(line);}
+     $whileLoopStatementRet.setLine(line);}
     e = expression {$whileLoopStatementRet.setCondition($e.expressionRet);}
     l = loopCondBody {$whileLoopStatementRet.setBody($l.loopCondBodyRet);};
 
 //todo
-doWhileLoopStatement :
-    DO body NEWLINE* WHILE expression;
+doWhileLoopStatement returns[LoopStmt doWhileLoopStatementRet]:
+    {$doWhileLoopStatementRet = new LoopStmt();}
+    d = DO
+    {int line = $d.getLine();
+     $doWhileLoopStatementRet.setLine(line);}
+    b = body {$doWhileLoopStatementRet.setBody($b.bodyRet);} NEWLINE* WHILE
+    e = expression {$doWhileLoopStatementRet.setCondition($e.expressionRet);};
 
 //todo
-displayStatement returns [DisplayStmt displayStatementRet] :
-    {$displayStatementRet = new DisplayStmt();}
-    d = DISPLAY
-    {int line $d.getLine();
-     $displayStatementRet.setLine(line);}
-    LPAR e = expression {$displayStatementRet.setArg($e.expressionRet);} RPAR;
+displayStatement returns[DisplayStmt displayStatementRet] :
+    d = DISPLAY LPAR e = expression
+    {$displayStatementRet = new DisplayStmt($e.expressionRet);
+     int line $d.getLine();
+     $displayStatementRet.setLine(line);} RPAR;
 
 //todo problem for orexpr
-assignmentStatement returns [AssignmentStmt assignmentStatementRet]:/// get line from assign
+assignmentStatement returns[AssignmentStmt assignmentStatementRet]:/// get line from assign
     o = orExpression a = ASSIGN e = expression
     {$assignmentStatementRet = new AssignmentStmt($o.orExpressionRet, $e.expressionRet);
      int line $a.getLine();
      $assignmentStatementRet.setLine(line);};
 
 //todo
-singleStatement returns [Statement singleStatementRet]:
+singleStatement returns[Statement singleStatementRet]:
     i = ifStatement {$singleStatementRet = $i.ifStatementRet;} |
     d = displayStatement {$singleStatementRet = $d.displayStatementRet;} |
     f = functionCallStmt {$singleStatementRet = $f.functionCallStmtRet;} |
@@ -173,7 +186,7 @@ expression returns[Expression expressionRet]:
     (op = ASSIGN e = expression
     {Expression operand1 = $expressionRet;
      Expression operand2 = $e.expressionRet;
-     BinaryOperator operator = $op.operatorRet;
+     BinaryOperator operator = BinaryOperator.assign;
      $expressionRet = new BinaryExpression(operand1, operand2, operator);
      int line = $op.getLine();
      $expressionRet.setLine(line);})? ;
