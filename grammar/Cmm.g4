@@ -79,8 +79,9 @@ body returns[Statement bodyRet]:
      (NEWLINE+ (ss = singleStatement {$bodyRet = $ss.singleStatementRet;}) (SEMICOLON)?));
 
 //todo
-loopCondBody :
-     (blockStatement | (NEWLINE+ singleStatement ));
+loopCondBody returns[Statement loopCondBodyRet]:
+     ((bs = blockStatement {$loopCondBodyRet = $bs.blockStatementRet;}) |
+     (NEWLINE+ ss = singleStatement {$bodyRet = $ss.singleStatementRet;}));
 
 //todo how implement for *?
 blockStatement returns[BlockStmt blockStatementRet]://
@@ -88,20 +89,32 @@ blockStatement returns[BlockStmt blockStatementRet]://
     b = BEGIN
     {int line = $b.getLine();
      $blockStatementRet.setLine(line);}
-    (NEWLINE+ (sa = singleStatement {$blockStatementRet.addStatement(sa.singleStatementRet)} SEMICOLON)*
-    (sb = singleStatement {$blockStatementRet.addStatement(sa.singleStatementRet)}) (SEMICOLON)?)+
+    (NEWLINE+ (s1 = singleStatement {$blockStatementRet.addStatement($s1.singleStatementRet);} SEMICOLON)*
+    (s2 = singleStatement {$blockStatementRet.addStatement($s2.singleStatementRet);}) (SEMICOLON)?)+
     NEWLINE+ END;
-//todo
-varDecStatement :
-    type identifier (ASSIGN orExpression )? (COMMA identifier (ASSIGN orExpression)? )*;
+//todo very important we haven't got variableDeclaration in varDecStatement !!!
+varDecStatement returns[VarDecStmt varDecStatementRet]:
+    {ArrayList<VariableDeclaration> vars = new ArrayList<>();}
+    t  = type i1 = identifier
+    {intstance1 = new VariableDeclaration($i1.identifierRet, $t.typeRet);}
+    (ASSIGN e1 = orExpression {intstance1.setDefaultValue($e1.orExpressionRet);} )?
+    (COMMA (i2 = identifier {intstance2 = new VariableDeclaration($i2.identifierRet, $t.typeRet);})
+    (ASSIGN e2 = orExpression {intstance2.setDefaultValue($e2.orExpressionRet);} )?)*
+    {$varDecStatementRet = new VarDecStmt(vars);};
 
-//todo
+//todo set line for last LPar
 functionCallStmt returns[FunctionCallStmt functionCallStmtRet]:
-    {Expression instance;
-     ArrayList<Expression> args;}
-    o = otherExpression {instance = $o.otherExpressionRet}
-    ((LPAR f1 = functionArguments RPAR) {} | (DOT identifier) {})*
-    (LPAR f1 = functionArguments RPAR);
+    {Expression instance;}
+    o = otherExpression {instance = $o.otherExpressionRet;}
+    ((LPAR f1 = functionArguments RPAR)
+    {instance = new FunctionCall(instance, $f1.args);} |
+    (DOT i = identifier)
+    {instance = new StructAccess(instance, $i.identifierRet);})*
+    (l = LPAR f2 = functionArguments RPAR
+    {int line = $l.getLine();
+     FunctionCall funcCall = new FunctionCall(instance, $f2.args);
+     $functionCallStmtRet = new FunctionCallStmt(funcCall);
+     $functionCallStmtRet.setLine(line);});
 
 //todo
 returnStatement returns[ReturnStmt returnStatementRet]:
@@ -139,7 +152,7 @@ whileLoopStatement returns[LoopStmt whileLoopStatementRet]:
     e = expression {$whileLoopStatementRet.setCondition($e.expressionRet);}
     l = loopCondBody {$whileLoopStatementRet.setBody($l.loopCondBodyRet);};
 
-//todo
+//todo falure is probably
 doWhileLoopStatement returns[LoopStmt doWhileLoopStatementRet]:
     {$doWhileLoopStatementRet = new LoopStmt();}
     d = DO
