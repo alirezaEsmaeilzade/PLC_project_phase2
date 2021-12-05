@@ -151,7 +151,6 @@ assignmentStatement returns [AssignmentStmt assignmentStatementRet]:/// get line
 
 //todo
 singleStatement returns [Statement singleStatementRet]:
-
     i = ifStatement {$singleStatementRet = $i.ifStatementRet;} |
     d = displayStatement {$singleStatementRet = $d.displayStatementRet;} |
     f = functionCallStmt {$singleStatementRet = $f.functionCallStmtRet;} |
@@ -170,7 +169,6 @@ singleStatement returns [Statement singleStatementRet]:
 
 //todo
 expression returns[Expression expressionRet]:
-    
     o = orExpression {$expressionRet = $o.orExpressionRet;}
     (op = ASSIGN e = expression
     {Expression operand1 = $expressionRet;
@@ -339,11 +337,20 @@ identifier returns[Identifier identifierRet]:
 
 //todo
 type returns[Type typeRet]:
-    INT | BOOL | LIST SHARP type | STRUCT identifier | fptrType;
+    INT {$typeRet = new IntType();} |
+    BOOL {$typeRet = new BoolType();} |
+    LIST SHARP t = type {$typeRet = new ListType($t.TypeRet);} |
+    STRUCT i = identifier {$typeRet = new StructType($i.identifierRet);} |
+    f = fptrType {$typeRet = $f.fptrTypeRet};
 
 //todo
-fptrType:
-    FPTR LESS_THAN (VOID | (type (COMMA type)*)) ARROW (type | VOID) GREATER_THAN;
+fptrType returns[FptrType fptrTypeRet]:
+    {ArrayList<Type> argsTypes;
+     Type returnType;}
+    FPTR LESS_THAN
+    (VOID | (t1 = type {argsTypes.add($t1.typeRet);} (COMMA t2 = type {argsTypes.add($t2.typeRet);})*))
+    ARROW (t3 = type {returnType = $t3.typeRet;} | VOID {returnType = new VoidType();}) GREATER_THAN
+    {$fptrTypeRet = new FptrType(argsTypes, returnType);};
 
 MAIN: 'main';
 RETURN: 'return';
