@@ -60,11 +60,21 @@ setBody :
 
 //todo
 functionDeclaration returns[FunctionDeclaration functionDeclarationRet]:
-    (type | VOID ) identifier functionArgsDec body NEWLINE+;
+    {$functionDeclarationRet = new FunctionDeclaration();}
+    (t = type {$functionDeclarationRet.setReturnType($t.typeRet);} |
+    VOID {$functionDeclarationRet.setReturnType(new VoidType();)})
+    i = identifier {$functionDeclarationRet.setFunctionName($i.identifierRet);}
+    f = functionArgsDec {$functionDeclarationRet.setArgs($f.functionArgsDecRet);}
+    b = body {$functionDeclarationRet.setBody($b.bodyRet);}
+    NEWLINE+;
 
 //todo
-functionArgsDec :
-    LPAR (type identifier (COMMA type identifier)*)? RPAR ;
+functionArgsDec returns[ArrayList<VariableDeclaration> functionArgsDecRet]:
+    {$functionArgsDecRet = new ArrayList<>();}
+    LPAR (t1 = type i1 = identifier
+    {$functionArgsDecRet.add(new VariableDeclaration($i1.identifierRet, $t1.typeRet));}
+    (COMMA t2 = type i2 = identifier
+    {$functionArgsDecRet.add(new VariableDeclaration($i2.identifierRet, $t2.typeRet));})*)? RPAR ;
 
 //todo
 functionArguments returns[ArrayList<Expression> args]:
@@ -74,14 +84,13 @@ functionArguments returns[ArrayList<Expression> args]:
 
 //todo
 body returns[Statement bodyRet]:
-
-     ((bs = blockStatement {$bodyRet = $bs.blockStatementRet;}) |
-     (NEWLINE+ (ss = singleStatement {$bodyRet = $ss.singleStatementRet;}) (SEMICOLON)?));
+    (b = blockStatement {$bodyRet = $b.blockStatementRet;}) |
+    (NEWLINE+ (s = singleStatement {$bodyRet = $s.singleStatementRet;}) (SEMICOLON)?);
 
 //todo
 loopCondBody returns[Statement loopCondBodyRet]:
-     ((bs = blockStatement {$loopCondBodyRet = $bs.blockStatementRet;}) |
-     (NEWLINE+ ss = singleStatement {$bodyRet = $ss.singleStatementRet;}));
+    (b = blockStatement {$loopCondBodyRet = $b.blockStatementRet;}) |
+    (NEWLINE+ s = singleStatement {$loopCondBodyRet = $s.singleStatementRet;});
 
 //todo how implement for *?
 blockStatement returns[BlockStmt blockStatementRet]://
@@ -92,29 +101,36 @@ blockStatement returns[BlockStmt blockStatementRet]://
     (NEWLINE+ (s1 = singleStatement {$blockStatementRet.addStatement($s1.singleStatementRet);} SEMICOLON)*
     (s2 = singleStatement {$blockStatementRet.addStatement($s2.singleStatementRet);}) (SEMICOLON)?)+
     NEWLINE+ END;
+
 //todo very important we haven't got variableDeclaration in varDecStatement !!!
 varDecStatement returns[VarDecStmt varDecStatementRet]:
-    {ArrayList<VariableDeclaration> vars = new ArrayList<>();}
+    {ArrayList<VariableDeclaration> vars = new ArrayList<>();
+     VariableDeclaration instance1, instance2;}
     t  = type i1 = identifier
-    {intstance1 = new VariableDeclaration($i1.identifierRet, $t.typeRet);}
-    (ASSIGN e1 = orExpression {intstance1.setDefaultValue($e1.orExpressionRet);} )?
-    (COMMA (i2 = identifier {intstance2 = new VariableDeclaration($i2.identifierRet, $t.typeRet);})
-    (ASSIGN e2 = orExpression {intstance2.setDefaultValue($e2.orExpressionRet);} )?)*
-    {$varDecStatementRet = new VarDecStmt(vars);};
+    {instance1 = new VariableDeclaration($i1.identifierRet, $t.typeRet);}
+    (ASSIGN e1 = orExpression {instance1.setDefaultValue($e1.orExpressionRet);} )?
+    {vars.add(instance1);}
+    (COMMA (i2 = identifier {instance2 = new VariableDeclaration($i2.identifierRet, $t.typeRet);})
+    (ASSIGN e2 = orExpression {instance2.setDefaultValue($e2.orExpressionRet);} )?
+    {vars.add(instance2);})*
+    {$varDecStatementRet = new VarDecStmt();
+     $varDecStatementRet.setVars(vars);};
 
 //todo set line for last LPar
 functionCallStmt returns[FunctionCallStmt functionCallStmtRet]:
     {Expression instance;}
     o = otherExpression {instance = $o.otherExpressionRet;}
-    ((LPAR f1 = functionArguments RPAR)
-    {instance = new FunctionCall(instance, $f1.args);} |
-    (DOT i = identifier)
-    {instance = new StructAccess(instance, $i.identifierRet);})*
-    (l = LPAR f2 = functionArguments RPAR
-    {int line = $l.getLine();
-     FunctionCall funcCall = new FunctionCall(instance, $f2.args);
+    ((l1 = LPAR f1 = functionArguments RPAR)
+    {instance = new FunctionCall(instance, $f1.args);
+     instance.setLine($l1.getLine();)} |
+    (d = DOT i = identifier)
+    {instance = new StructAccess(instance, $i.identifierRet);
+     instance.setLine($d.getLine())})*
+    (l2 = LPAR f2 = functionArguments RPAR
+    {FunctionCall funcCall = new FunctionCall(instance, $f2.args);
+     funcCall.setLine($l2.getLine());
      $functionCallStmtRet = new FunctionCallStmt(funcCall);
-     $functionCallStmtRet.setLine(line);});
+     $functionCallStmtRet.setLine($l2.getLine());});
 
 //todo
 returnStatement returns[ReturnStmt returnStatementRet]:
@@ -365,7 +381,7 @@ identifier returns[Identifier identifierRet]:
 type returns[Type typeRet]:
     INT {$typeRet = new IntType();} |
     BOOL {$typeRet = new BoolType();} |
-    LIST SHARP t = type {$typeRet = new ListType($t.TypeRet);} |
+    LIST SHARP t = type {$typeRet = new ListType($t.typeRet);} |
     STRUCT i = identifier {$typeRet = new StructType($i.identifierRet);} |
     f = fptrType {$typeRet = $f.fptrTypeRet};
 
