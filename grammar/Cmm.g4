@@ -34,11 +34,18 @@ main returns[MainDeclaration mainRet]:
 
 //todo
 structDeclaration returns[StructDeclaration structDeclarationRet]:
-    STRUCT identifier ((BEGIN structBody NEWLINE+ END) | (NEWLINE+ singleStatementStructBody SEMICOLON?)) NEWLINE+;
+    STRUCT i = identifier 
+    ((BEGIN structBody NEWLINE+ END) | (NEWLINE+ singleStatementStructBody SEMICOLON?)) NEWLINE+;
 
 //todo
-singleVarWithGetAndSet :
-    type identifier functionArgsDec BEGIN NEWLINE+ setBody getBody END;
+singleVarWithGetAndSet returns[SetGetVarDeclaration singleVarWithGetAndSetRet]:
+    {$singleVarWithGetAndSetRet = new SetGetVarDeclaration();}
+    t = type {$singleVarWithGetAndSetRet.setVarType($t.typeRet);}
+    i = identifier {$singleVarWithGetAndSetRet.setVarName($i.identifierRet);}
+    f = functionArgsDec {$singleVarWithGetAndSetRet.setArgs($f.functionArgsDecRet);}
+    BEGIN NEWLINE+
+    s = setBody {$singleVarWithGetAndSetRet.setSetterBody($s.setBodyRet);}
+    g = getBody END {$singleVarWithGetAndSetRet.setGetterBody($g.getBodyRet);};
 
 //todo
 singleStatementStructBody :
@@ -49,12 +56,12 @@ structBody :
     (NEWLINE+ (singleStatementStructBody SEMICOLON)* singleStatementStructBody SEMICOLON?)+;
 
 //todo
-getBody :
-    GET body NEWLINE+;
+getBody returns[Statement getBodyRet]:
+    GET b = body NEWLINE+ {$getBodyRet = $b.bodyRet;};
 
 //todo
-setBody :
-    SET body NEWLINE+;
+setBody returns[Statement setBodyRet]:
+    SET b = body NEWLINE+ {$setBodyRet = $b.bodyRet;};
 
 //todo
 functionDeclaration returns[FunctionDeclaration functionDeclarationRet]:
@@ -308,7 +315,7 @@ accessExpression returns[Expression accessExpressionRet]:
      d1 = DOT i1 = identifier
     {Expression instance = $accessExpressionRet;
      Identifier element = $i1.identifierRet;
-     $accessExpressionRet = new StructAccess(instance, args);
+     $accessExpressionRet = new StructAccess(instance, element);
      int line = $d1.getLine();
      $accessExpressionRet.setLine(line);})*
     
@@ -321,7 +328,7 @@ accessExpression returns[Expression accessExpressionRet]:
     (d2 = DOT i2 = identifier)
     {Expression instance = $accessExpressionRet;
      Identifier element = $i2.identifierRet;
-     $accessExpressionRet = new StructAccess(instance, args);
+     $accessExpressionRet = new StructAccess(instance, element);
      int line = $d2.getLine();
      $accessExpressionRet.setLine(line);})*;
 
@@ -385,7 +392,7 @@ type returns[Type typeRet]:
 
 //todo
 fptrType returns[FptrType fptrTypeRet]:
-    {ArrayList<Type> argsTypes;
+    {ArrayList<Type> argsTypes = new ArrayList<>();
      Type returnType;}
     FPTR LESS_THAN
     (VOID | (t1 = type {argsTypes.add($t1.typeRet);} (COMMA t2 = type {argsTypes.add($t2.typeRet);})*))

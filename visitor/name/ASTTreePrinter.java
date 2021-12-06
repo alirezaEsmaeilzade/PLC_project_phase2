@@ -32,7 +32,7 @@ public class ASTTreePrinter extends Visitor<Void> {
 
     @Override
     public Void visit(MainDeclaration mainDec) {
-        //todo
+        messagePrinter(mainDec.getLine(), mainDec.toString());
         return null;
     }
 
