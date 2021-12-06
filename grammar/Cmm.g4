@@ -68,18 +68,28 @@ functionDeclaration returns[FunctionDeclaration functionDeclarationRet]:
     {$functionDeclarationRet = new FunctionDeclaration();}
     (t = type {$functionDeclarationRet.setReturnType($t.typeRet);} |
     VOID {$functionDeclarationRet.setReturnType(new VoidType());})
-    i = identifier {$functionDeclarationRet.setFunctionName($i.identifierRet);}
+    i = identifier
+    {$functionDeclarationRet.setFunctionName($i.identifierRet);
+     int line = $i.identifierRet.getLine();
+     $functionDeclarationRet.setLine(line);}
     f = functionArgsDec {$functionDeclarationRet.setArgs($f.functionArgsDecRet);}
     b = body {$functionDeclarationRet.setBody($b.bodyRet);}
     NEWLINE+;
 
 //todo
 functionArgsDec returns[ArrayList<VariableDeclaration> functionArgsDecRet]:
-    {$functionArgsDecRet = new ArrayList<>();}
+    {$functionArgsDecRet = new ArrayList<>();
+     VariableDeclaration variableDeclaration;}
     LPAR (t1 = type i1 = identifier
-    {$functionArgsDecRet.add(new VariableDeclaration($i1.identifierRet, $t1.typeRet));}
+    {variableDeclaration = new VariableDeclaration($i1.identifierRet, $t1.typeRet);
+     int line1 = $i1.identifierRet.getLine();
+     variableDeclaration.setLine(line1);
+     $functionArgsDecRet.add(variableDeclaration);}
     (COMMA t2 = type i2 = identifier
-    {$functionArgsDecRet.add(new VariableDeclaration($i2.identifierRet, $t2.typeRet));})*)? RPAR ;
+    {variableDeclaration = new VariableDeclaration($i2.identifierRet, $t2.typeRet);
+     int line2 = $i2.identifierRet.getLine();
+     variableDeclaration.setLine(line2);
+     $functionArgsDecRet.add(variableDeclaration);})*)? RPAR ;
 
 //todo
 functionArguments returns[ArrayList<Expression> args]:
@@ -111,15 +121,21 @@ blockStatement returns[BlockStmt blockStatementRet]://
 varDecStatement returns[VarDecStmt varDecStatementRet]:
     {ArrayList<VariableDeclaration> vars = new ArrayList<>();
      VariableDeclaration instance1, instance2;}
-    t  = type i1 = identifier
-    {instance1 = new VariableDeclaration($i1.identifierRet, $t.typeRet);}
+    t = type i1 = identifier
+    {instance1 = new VariableDeclaration($i1.identifierRet, $t.typeRet);
+     int line1 = $i1.identifierRet.getLine();
+     instance1.setLine(line1);}
     (ASSIGN e1 = orExpression {instance1.setDefaultValue($e1.orExpressionRet);} )?
     {vars.add(instance1);}
-    (COMMA (i2 = identifier {instance2 = new VariableDeclaration($i2.identifierRet, $t.typeRet);})
+    (COMMA (i2 = identifier
+    {instance2 = new VariableDeclaration($i2.identifierRet, $t.typeRet);
+     int line2 = $i2.identifierRet.getLine();
+     instance2.setLine(line2);})
     (ASSIGN e2 = orExpression {instance2.setDefaultValue($e2.orExpressionRet);} )?
     {vars.add(instance2);})*
     {$varDecStatementRet = new VarDecStmt();
-     $varDecStatementRet.setVars(vars);};
+     $varDecStatementRet.setVars(vars);
+     $varDecStatementRet.setLine(vars.get(0).getLine());}; //todo [0] is so dangrous!!
 
 //todo set line for last LPar
 functionCallStmt returns[FunctionCallStmt functionCallStmtRet]:
@@ -362,7 +378,9 @@ value returns[Value valueRet]:
     b = boolValue
     {$valueRet = $b.boolValueRet;} |
     i = INT_VALUE
-    {$valueRet = new IntValue(Integer.parseInt($i.text));};
+    {$valueRet = new IntValue(Integer.parseInt($i.text));
+      int line = $i.getLine();
+      $valueRet.setLine(line);};
 
 //todo
 boolValue returns[BoolValue boolValueRet]:
