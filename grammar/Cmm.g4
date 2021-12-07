@@ -34,26 +34,46 @@ main returns[MainDeclaration mainRet]:
 
 //todo
 structDeclaration returns[StructDeclaration structDeclarationRet]:
-    STRUCT i = identifier 
-    ((BEGIN structBody NEWLINE+ END) | (NEWLINE+ singleStatementStructBody SEMICOLON?)) NEWLINE+;
+    {$structDeclarationRet = new StructDeclaration();}
+    s = STRUCT
+    {int line = $s.getLine();
+     $structDeclarationRet.setLine(line);}
+    i = identifier {$structDeclarationRet.setStructName($i.identifierRet);}
+    ((b = BEGIN sb = structBody
+    {int line2 = $b.getLine();
+     $sb.structBodyRet.setLine(line2);
+     $structDeclarationRet.setBody($sb.structBodyRet);}
+    NEWLINE+ END) |
+    (NEWLINE+ ss = singleStatementStructBody
+    {$structDeclarationRet.setBody($ss.singleStatementStructBodyRet);}
+    SEMICOLON?)) NEWLINE+;
 
 //todo
 singleVarWithGetAndSet returns[SetGetVarDeclaration singleVarWithGetAndSetRet]:
     {$singleVarWithGetAndSetRet = new SetGetVarDeclaration();}
     t = type {$singleVarWithGetAndSetRet.setVarType($t.typeRet);}
-    i = identifier {$singleVarWithGetAndSetRet.setVarName($i.identifierRet);}
+    i = identifier
+    {$singleVarWithGetAndSetRet.setVarName($i.identifierRet);
+     int line = $i.identifierRet.getLine();
+     $singleVarWithGetAndSetRet.setLine(line);}
     f = functionArgsDec {$singleVarWithGetAndSetRet.setArgs($f.functionArgsDecRet);}
     BEGIN NEWLINE+
     s = setBody {$singleVarWithGetAndSetRet.setSetterBody($s.setBodyRet);}
     g = getBody END {$singleVarWithGetAndSetRet.setGetterBody($g.getBodyRet);};
 
 //todo
-singleStatementStructBody :
-    varDecStatement | singleVarWithGetAndSet;
+singleStatementStructBody returns[Statement singleStatementStructBodyRet]:
+    v = varDecStatement {$singleStatementStructBodyRet = $v.varDecStatementRet;} |
+    s = singleVarWithGetAndSet {$singleStatementStructBodyRet = $s.singleVarWithGetAndSetRet;};
 
 //todo
-structBody :
-    (NEWLINE+ (singleStatementStructBody SEMICOLON)* singleStatementStructBody SEMICOLON?)+;
+structBody returns[BlockStmt structBodyRet]:
+    {$structBodyRet = new BlockStmt();}
+    (NEWLINE+ ((s1 = singleStatementStructBody
+    {$structBodyRet.addStatement($s1.singleStatementStructBodyRet);})
+    SEMICOLON)* (s2 = singleStatementStructBody
+    {$structBodyRet.addStatement($s2.singleStatementStructBodyRet);})
+    SEMICOLON?)+;
 
 //todo
 getBody returns[Statement getBodyRet]:
