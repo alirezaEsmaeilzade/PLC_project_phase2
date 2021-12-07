@@ -16,9 +16,6 @@ import main.symbolTable.items.VariableSymbolTableItem;
 import main.visitor.*;
 
 public class ErrorPrinter extends Visitor<Void> {
-    public void messagePrinter(int line, String message){
-        System.out.println("Line " + line + ": " + message);
-    }
     private int numberOfErrors;
     private int lastID;
     private String generateName(){
@@ -38,26 +35,59 @@ public class ErrorPrinter extends Visitor<Void> {
         SymbolTable.root = programST;
         for (StructDeclaration structDeclaration : program.getStructs()) {
             SymbolTable structSymbolTable = new SymbolTable(SymbolTable.top);
-            SymbolTable.push(structSymbolTable);
             StructSymbolTableItem structSymbolTableItem = new StructSymbolTableItem(structDeclaration);
-            structSymbolTableItem.setStructSymbolTable(SymbolTable.top);
+            structSymbolTableItem.setStructSymbolTable(structSymbolTable);
             try {
-                programST.put(structSymbolTableItem);//todo try catch
+                String startKey = FunctionSymbolTableItem.START_KEY;
+                String name = startKey.concat(structSymbolTableItem.getName());
+                SymbolTable.top.getItem(name);
+                FunctionStructConflict functionStructConflict;
+                functionStructConflict = new FunctionStructConflict(
+                        structDeclaration.getLine(), structSymbolTableItem.getName());
+                System.out.println(functionStructConflict.getMessage());
+                numberOfErrors++;
+            }
+            catch (ItemNotFoundException ex) {
+                // there is no conflict with structs
+            }
+
+            try {
+                programST.put(structSymbolTableItem);
             }
             catch (ItemAlreadyExistsException ex) {
                 DuplicateStruct duplicateStruct;
                 duplicateStruct = new DuplicateStruct(
                         structDeclaration.getLine(), structSymbolTableItem.getName());
                 System.out.println(duplicateStruct.getMessage());
+                numberOfErrors++;
+                structSymbolTableItem.setName(generateName());
+                try {
+                    programST.put(structSymbolTableItem);
+                }
+                catch(ItemAlreadyExistsException ex2){
+                }
             }
-//            structDeclaration.accept(this);
-            SymbolTable.pop();//
+            SymbolTable.push(structSymbolTable);
+            structDeclaration.accept(this);
+//            SymbolTable.pop();
         }
         for (FunctionDeclaration functionDeclaration : program.getFunctions()) {
             SymbolTable functionSymbolTable = new SymbolTable(SymbolTable.top);
-            SymbolTable.push(functionSymbolTable);
             FunctionSymbolTableItem functionSymbolTableItem = new FunctionSymbolTableItem(functionDeclaration);
-            functionSymbolTableItem.setFunctionSymbolTable(SymbolTable.top);
+            functionSymbolTableItem.setFunctionSymbolTable(functionSymbolTable);
+            try {
+                String startKey = StructSymbolTableItem.START_KEY;
+                String name = startKey.concat(functionSymbolTableItem.getName());
+                SymbolTable.top.getItem(name);
+                FunctionStructConflict functionStructConflict;
+                functionStructConflict = new FunctionStructConflict(
+                        functionDeclaration.getLine(), functionSymbolTableItem.getName());
+                System.out.println(functionStructConflict.getMessage());
+                numberOfErrors++;
+            }
+            catch (ItemNotFoundException ex) {
+                // there is no conflict with structs
+            }
             try {
                 programST.put(functionSymbolTableItem);//todo try catch
             }
@@ -66,9 +96,17 @@ public class ErrorPrinter extends Visitor<Void> {
                 duplicateFunction = new DuplicateFunction(
                         functionDeclaration.getLine(), functionSymbolTableItem.getName());
                 System.out.println(duplicateFunction.getMessage());
+                numberOfErrors++;
+                functionSymbolTableItem.setName(generateName());
+                try {
+                    programST.put(functionSymbolTableItem);
+                }
+                catch(ItemAlreadyExistsException ex2){
+                }
             }
-//            functionDeclaration.accept(this);
-            SymbolTable.pop();//
+            SymbolTable.push(functionSymbolTable);
+            functionDeclaration.accept(this);
+//            SymbolTable.pop();//
         }
         MainDeclaration mainDeclaration = program.getMain();
         SymbolTable mainSymbolTable = new SymbolTable(SymbolTable.top);
@@ -80,7 +118,6 @@ public class ErrorPrinter extends Visitor<Void> {
 
     @Override
     public Void visit(FunctionDeclaration functionDec) {
-
         for (VariableDeclaration variableDeclaration : functionDec.getArgs())
             variableDeclaration.accept(this);
         functionDec.getBody().accept(this);
@@ -148,8 +185,6 @@ public class ErrorPrinter extends Visitor<Void> {
 
     @Override
     public Void visit(StructDeclaration structDec) {
-        SymbolTable structSymbolTable = new SymbolTable(SymbolTable.top);
-        SymbolTable.push(structSymbolTable);
         structDec.getBody().accept(this);
         SymbolTable.pop();
         return null;
@@ -159,6 +194,10 @@ public class ErrorPrinter extends Visitor<Void> {
     public Void visit(SetGetVarDeclaration setGetVarDec) {
         SymbolTable setGetSymbolTable = new SymbolTable(SymbolTable.top);
         SymbolTable.push(setGetSymbolTable);
+        VariableDeclaration fieldDec = new VariableDeclaration(
+                setGetVarDec.getVarName(), setGetVarDec.getVarType());
+        fieldDec.setLine(setGetVarDec.getLine());
+        fieldDec.accept(this);
         for (VariableDeclaration variableDeclaration : setGetVarDec.getArgs())
             variableDeclaration.accept(this);
         SymbolTable.pop();

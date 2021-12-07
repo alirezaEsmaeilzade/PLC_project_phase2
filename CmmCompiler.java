@@ -16,10 +16,9 @@ public class CmmCompiler {
         Program program = cmmParser.cmm().cmmProgram;
         ErrorPrinter errorPrinter = new ErrorPrinter();
         program.accept(errorPrinter);
-        //todo if we haven't any error we should print AST
-//        ASTTreePrinter astTreePrinter = new ASTTreePrinter();
-//        program.accept(astTreePrinter);
-
-        //todo
+        if (errorPrinter.getNumberOfErrors() == 0){
+            ASTTreePrinter astTreePrinter = new ASTTreePrinter();
+            program.accept(astTreePrinter);
+        }
     }
 }
