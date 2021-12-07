@@ -18,19 +18,23 @@ public class ErrorPrinter extends Visitor<Void> {
     public void messagePrinter(int line, String message){
         System.out.println("Line " + line + ": " + message);
     }
-
+    private int numberOfErrors;
+    public int getNumberOfErrors() { return this.numberOfErrors; }
+    public ErrorPrinter(){
+        numberOfErrors = 0;
+    }
     @Override
     public Void visit(Program program) {
         SymbolTable programST = new SymbolTable();
         SymbolTable.push(programST);
         SymbolTable.root = programST;
         for (StructDeclaration structDeclaration : program.getStructs()) {
-            SymbolTable structSymbolTable = new SymbolTable(SymbolTable.top);
-            SymbolTable.push(structSymbolTable);
+//            SymbolTable structSymbolTable = new SymbolTable(SymbolTable.top);
+//            SymbolTable.push(structSymbolTable);
             //structDeclaration.accept(this);
-            SymbolTable.pop();
             StructSymbolTableItem structSymbolTableItem = new StructSymbolTableItem(structDeclaration);
-            structSymbolTableItem.setStructSymbolTable(structSymbolTable);
+            structSymbolTableItem.setStructSymbolTable(SymbolTable.top);
+            SymbolTable.pop();
             try {
                 programST.put(structSymbolTableItem);//todo try catch
             }
@@ -42,12 +46,11 @@ public class ErrorPrinter extends Visitor<Void> {
             }
         }
         for (FunctionDeclaration functionDeclaration : program.getFunctions()) {
-            SymbolTable functionSymbolTable = new SymbolTable(SymbolTable.top);
-            SymbolTable.push(functionSymbolTable);
-            //functionDeclaration.accept(this);
-            SymbolTable.pop();
+//            SymbolTable functionSymbolTable = new SymbolTable(SymbolTable.top);
+//            SymbolTable.push(functionSymbolTable);
             FunctionSymbolTableItem functionSymbolTableItem = new FunctionSymbolTableItem(functionDeclaration);
-            functionSymbolTableItem.setFunctionSymbolTable(functionSymbolTable);
+//            functionSymbolTableItem.setFunctionSymbolTable(SymbolTable.top);
+//            SymbolTable.pop();
             try {
                 programST.put(functionSymbolTableItem);//todo try catch
             }
@@ -57,11 +60,12 @@ public class ErrorPrinter extends Visitor<Void> {
                         functionDeclaration.getLine(), functionSymbolTableItem.getName());
                 System.out.println(duplicateFunction.getMessage());
             }
+            //functionDeclaration.accept(this);
         }
         MainDeclaration mainDeclaration = program.getMain();
-        SymbolTable mainSymbolTable = new SymbolTable(SymbolTable.top);
-        SymbolTable.push(mainSymbolTable);
-//        mainDeclaration.accept(this);
+//        SymbolTable mainSymbolTable = new SymbolTable(SymbolTable.top);
+//        SymbolTable.push(mainSymbolTable);
+        mainDeclaration.accept(this);
         SymbolTable.pop();
         SymbolTable.pop(); // pop program
         return null;
@@ -79,7 +83,8 @@ public class ErrorPrinter extends Visitor<Void> {
 
     @Override
     public Void visit(MainDeclaration mainDec) {
-        messagePrinter(mainDec.getLine(), mainDec.toString());
+        SymbolTable mainSymbolTable = new SymbolTable(SymbolTable.top);
+        SymbolTable.push(mainSymbolTable);
         mainDec.getBody().accept(this);
         return null;
     }
