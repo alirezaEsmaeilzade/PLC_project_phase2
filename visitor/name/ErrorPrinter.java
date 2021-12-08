@@ -14,6 +14,7 @@ import main.symbolTable.items.FunctionSymbolTableItem;
 import main.symbolTable.items.StructSymbolTableItem;
 import main.symbolTable.items.VariableSymbolTableItem;
 import main.visitor.*;
+import main.ast.types.*;
 import main.visitor.name.Graph;
 
 public class ErrorPrinter extends Visitor<Void> {
@@ -127,11 +128,12 @@ public class ErrorPrinter extends Visitor<Void> {
         // finding cyclic dependency in structs
         structsGraph.findSCC();
         for (StructDeclaration structDeclaration : program.getStructs()) {
-            String structName = structDeclaration.getStructName().getName()
+            String structName = structDeclaration.getStructName().getName();
             int line = structDeclaration.getLine();
-            if (structsGraph.isInCycle(structName)) {
+            if (structsGraph.isVertexInCycle(structName)) {
                 CyclicDependency cyclicDependency = new CyclicDependency(line, structName);
                 System.out.println(cyclicDependency.getMessage());
+                numberOfErrors++;
             }
         }
         return null;
@@ -200,11 +202,10 @@ public class ErrorPrinter extends Visitor<Void> {
             SymbolTable.top.put(variableSymbolTableItem);
             // check if an struct variable is declared in other structs scope
             String startKey = StructSymbolTableItem.START_KEY;
-            boolean isStructVariable = variableDeclaration.gatVarType() instanceof StructType;
+            boolean isStructVariable = variableDec.getVarType() instanceof StructType;
             boolean isInStructScope = SymbolTable.top.pre == SymbolTable.root && currentScope.startsWith(startKey);
-            
             if (isStructVariable && isInStructScope) {
-                StructType structType = variableDeclaration.getVarType()
+                StructType structType = (StructType) variableDec.getVarType();
                 String varStructName = structType.getStructName().getName();
                 String scopeStructName = currentScope.substring(startKey.length());
                 if (varStructName.equals(scopeStructName))
