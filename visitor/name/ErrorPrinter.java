@@ -14,26 +14,35 @@ import main.symbolTable.items.FunctionSymbolTableItem;
 import main.symbolTable.items.StructSymbolTableItem;
 import main.symbolTable.items.VariableSymbolTableItem;
 import main.visitor.*;
+import main.visitor.name.Graph;
 
 public class ErrorPrinter extends Visitor<Void> {
     private int numberOfErrors;
     private int lastID;
-    private String generateName(){
-        lastID++;
-        return Integer.toString(lastID);
-    }
-    public int getNumberOfErrors() { return numberOfErrors; }
+    private Graph<String> structsGraph;
+    private String currentScope;
+
     public ErrorPrinter() {
         lastID = 0;
         numberOfErrors = 0;
+        structsGraph = new Graph<>();
     }
+
+    private String generateName() {
+        lastID++;
+        return Integer.toString(lastID);
+    }
+
+    public int getNumberOfErrors() { return numberOfErrors; }
 
     @Override
     public Void visit(Program program) {
         SymbolTable programST = new SymbolTable();
         SymbolTable.push(programST);
         SymbolTable.root = programST;
+
         for (StructDeclaration structDeclaration : program.getStructs()) {
+            structsGraph.addVertex(structDeclaration.getStructName().getName());
             SymbolTable structSymbolTable = new SymbolTable(SymbolTable.top);
             StructSymbolTableItem structSymbolTableItem = new StructSymbolTableItem(structDeclaration);
             structSymbolTableItem.setStructSymbolTable(structSymbolTable);
@@ -64,13 +73,13 @@ public class ErrorPrinter extends Visitor<Void> {
                 try {
                     programST.put(structSymbolTableItem);
                 }
-                catch(ItemAlreadyExistsException ex2){
-                }
+                catch(ItemAlreadyExistsException ex2) {}
             }
             SymbolTable.push(structSymbolTable);
+            currentScope = structSymbolTableItem.getKey();
             structDeclaration.accept(this);
-//            SymbolTable.pop();
         }
+
         for (FunctionDeclaration functionDeclaration : program.getFunctions()) {
             SymbolTable functionSymbolTable = new SymbolTable(SymbolTable.top);
             FunctionSymbolTableItem functionSymbolTableItem = new FunctionSymbolTableItem(functionDeclaration);
@@ -89,7 +98,7 @@ public class ErrorPrinter extends Visitor<Void> {
                 // there is no conflict with structs
             }
             try {
-                programST.put(functionSymbolTableItem);//todo try catch
+                programST.put(functionSymbolTableItem);
             }
             catch (ItemAlreadyExistsException ex) {
                 DuplicateFunction duplicateFunction;
@@ -101,18 +110,30 @@ public class ErrorPrinter extends Visitor<Void> {
                 try {
                     programST.put(functionSymbolTableItem);
                 }
-                catch(ItemAlreadyExistsException ex2){
-                }
+                catch(ItemAlreadyExistsException ex2) {}
             }
             SymbolTable.push(functionSymbolTable);
+            currentScope = functionSymbolTableItem.getKey();
             functionDeclaration.accept(this);
-//            SymbolTable.pop();//
         }
+
         MainDeclaration mainDeclaration = program.getMain();
         SymbolTable mainSymbolTable = new SymbolTable(SymbolTable.top);
         SymbolTable.push(mainSymbolTable);
+        currentScope = "main"; //todo
         mainDeclaration.accept(this);
         SymbolTable.pop(); // pop program
+
+        // finding cyclic dependency in structs
+        structsGraph.findSCC();
+        for (StructDeclaration structDeclaration : program.getStructs()) {
+            String structName = structDeclaration.getStructName().getName()
+            int line = structDeclaration.getLine();
+            if (structsGraph.isInCycle(structName)) {
+                CyclicDependency cyclicDependency = new CyclicDependency(line, structName);
+                System.out.println(cyclicDependency.getMessage());
+            }
+        }
         return null;
     }
 
@@ -175,11 +196,21 @@ public class ErrorPrinter extends Visitor<Void> {
             // there is no duplicated var
         }
 
-        try{
+        try {
             SymbolTable.top.put(variableSymbolTableItem);
+            // check if an struct variable is declared in other structs scope
+            String startKey = StructSymbolTableItem.START_KEY;
+            boolean isStructVariable = variableDeclaration.gatVarType() instanceof StructType;
+            boolean isInStructScope = SymbolTable.top.pre == SymbolTable.root && currentScope.startsWith(startKey);
+            
+            if (isStructVariable && isInStructScope) {
+                StructType structType = variableDeclaration.getVarType()
+                String varStructName = structType.getStructName().getName();
+                String scopeStructName = currentScope.substring(startKey.length());
+                structsGraph.addEdge(scopeStructName, varStructName);
+            }
         }
-        catch(ItemAlreadyExistsException ex){
-        }
+        catch(ItemAlreadyExistsException ex) {}
         return null;
     }
 
@@ -272,96 +303,4 @@ public class ErrorPrinter extends Visitor<Void> {
     public Void visit(ListSizeStmt listSizeStmt) {
         return null;
     }
-
-    // @Override
-    // public Void visit(BinaryExpression binaryExpression) {
-    //     //todo
-    //     messagePrinter(binaryExpression.getLine(), binaryExpression.toString());
-    //     binaryExpression.getFirstOperand().accept(this);
-    //     binaryExpression.getSecondOperand().accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(UnaryExpression unaryExpression) {
-    //     //todo
-    //     messagePrinter(unaryExpression.getLine(), unaryExpression.toString());
-    //     unaryExpression.getOperand().accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(FunctionCall funcCall) {
-    //     //todo
-    //     messagePrinter(funcCall.getLine(), funcCall.toString());
-    //     funcCall.getInstance().accept(this);
-    //     for (Expression expression : funcCall.getArgs())
-    //         expression.accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(Identifier identifier) {
-    //     //todo
-    //     messagePrinter(identifier.getLine(), identifier.toString());
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(ListAccessByIndex listAccessByIndex) {
-    //     //todo
-    //     messagePrinter(listAccessByIndex.getLine(), listAccessByIndex.toString());
-    //     listAccessByIndex.getInstance().accept(this);
-    //     listAccessByIndex.getIndex().accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(StructAccess structAccess) {
-    //     //todo
-    //     messagePrinter(structAccess.getLine(), structAccess.toString());
-    //     structAccess.getInstance().accept(this);
-    //     structAccess.getElement().accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(ListSize listSize) {
-    //     //todo
-    //     messagePrinter(listSize.getLine(), listSize.toString());
-    //     listSize.getArg().accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(ListAppend listAppend) {
-    //     //todo
-    //     messagePrinter(listAppend.getLine(), listAppend.toString());
-    //     listAppend.getListArg().accept(this);
-    //     listAppend.getElementArg().accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(ExprInPar exprInPar) {
-    //     //todo
-    //     messagePrinter(exprInPar.getLine(), exprInPar.toString());
-    //     for (Expression expression : exprInPar.getInputs())
-    //         expression.accept(this);
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(IntValue intValue) {
-    //     //todo
-    //     messagePrinter(intValue.getLine(), intValue.toString());
-    //     return null;
-    // }
-
-    // @Override
-    // public Void visit(BoolValue boolValue) {
-    //     //todo
-    //     messagePrinter(boolValue.getLine(), boolValue.toString());
-    //     return null;
-    // }
 }
