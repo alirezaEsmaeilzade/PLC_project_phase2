@@ -207,7 +207,10 @@ public class ErrorPrinter extends Visitor<Void> {
                 StructType structType = variableDeclaration.getVarType()
                 String varStructName = structType.getStructName().getName();
                 String scopeStructName = currentScope.substring(startKey.length());
-                structsGraph.addEdge(scopeStructName, varStructName);
+                if (varStructName.equals(scopeStructName))
+                    structsGraph.addSelfLoop(scopeStructName);
+                else
+                    structsGraph.addEdge(scopeStructName, varStructName);
             }
         }
         catch(ItemAlreadyExistsException ex) {}

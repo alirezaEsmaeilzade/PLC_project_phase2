@@ -4,6 +4,7 @@ class Graph<T> {
 	private Map<T, List<T>> adj;
     private Map<T, boolean> visited;
     private Map<T, boolean> isInCycle;
+    private Map<T, boolean> hasSelfLoop;
 
     public Graph() {
         adj = new HashMap<>();
@@ -23,6 +24,10 @@ class Graph<T> {
             addVertex(destination);
 		adj.get(source).add(destination);
 	}
+
+    public void addSelfLoop(T v) {
+        hasSelfLoop.put(v, true);
+    }
 
     public void DFSUtil(T s, List<T> SCC) {
         visited.put(s, true);
@@ -77,6 +82,6 @@ class Graph<T> {
     }
 
     public boolean isVertexInCycle(T v) {
-        return isInCycle.get(v);
+        return hasSelfLoop.get(v) && isInCycle.get(v);
     }
 }
